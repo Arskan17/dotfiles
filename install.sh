@@ -3,7 +3,11 @@
 # large shared history, prefix history search on Up/Down.
 #
 #   curl -fsSL https://raw.githubusercontent.com/Arskan17/dotfiles/main/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/Arskan17/dotfiles/main/install.sh | bash -s -- --git        # + my git identity
 #   curl -fsSL https://raw.githubusercontent.com/Arskan17/dotfiles/main/install.sh | bash -s -- --uninstall
+#
+# --git sets git user.name/user.email (GitHub noreply) only if not already set, and wires
+# gh as the git credential helper. Override with GIT_NAME / GIT_EMAIL env vars.
 #
 # Idempotent: safe to re-run; it refreshes its own marked blocks in ~/.bashrc and ~/.inputrc.
 # Everything is wrapped in main() so a partially downloaded script never runs.
@@ -42,8 +46,39 @@ main() {
     else echo "install: $*"; fi
   }
 
+  local UNINSTALL=0 GIT=0 a
+  for a in "$@"; do
+    case "$a" in
+      --uninstall) UNINSTALL=1 ;;
+      --git)       GIT=1 ;;
+      *) die "unknown option: $a (use --git and/or --uninstall)" ;;
+    esac
+  done
+
+  # ---------- git identity (opt-in: --git) ----------
+  # Sets the owner's GitHub noreply identity only where none is configured yet,
+  # so an existing (e.g. work) identity is never overwritten.
+  setup_git() {
+    local name="${GIT_NAME:-Arskan17}"
+    local email="${GIT_EMAIL:-75216911+Arskan17@users.noreply.github.com}"
+    if ! command -v git >/dev/null 2>&1; then
+      warn "git not installed; skipping git setup ($(pkg_hint git))"; return 0
+    fi
+    if [ -z "$(git config --global user.name || true)" ]; then
+      git config --global user.name "$name"; info "git user.name  -> $name"
+    else info "git user.name already set: $(git config --global user.name)"; fi
+    if [ -z "$(git config --global user.email || true)" ]; then
+      git config --global user.email "$email"; info "git user.email -> $email"
+    else info "git user.email already set: $(git config --global user.email)"; fi
+    if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
+      gh auth setup-git && info "git now uses the gh login for GitHub HTTPS"
+    else
+      info "gh not installed or not logged in; run 'gh auth login && gh auth setup-git' later for password-less pushes"
+    fi
+  }
+
   # ---------- uninstall ----------
-  if [ "${1-}" = "--uninstall" ]; then
+  if [ "$UNINSTALL" = 1 ]; then
     info "Removing managed blocks from $BASHRC and $INPUTRC"
     strip_block "$BASHRC" "ble.sh"
     strip_block "$BASHRC" "main"
@@ -155,6 +190,8 @@ EOF
     cat "$TMP/inputrc"
     echo '# <<< dotfiles inputrc <<<'
   } >> "$INPUTRC"
+
+  [ "$GIT" = 1 ] && setup_git
 
   info "Done. Open a new shell: type a previous command for gray suggestions (Right/End to accept),"
   info "Ctrl-R for fuzzy history, Up/Down for prefix search. Backup: $BASHRC.bak.*"

@@ -17,6 +17,14 @@ Then open a new shell. You can run the installer again at any time to update ble
 
 The installer needs `curl`, `tar`, `xz` and `awk`, and no sudo. If fzf is missing or older than 0.48, it installs fzf to `~/.local/bin`.
 
+### My machines: also set up the git identity
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Arskan17/dotfiles/main/install.sh | bash -s -- --git
+```
+
+`--git` sets the global git `user.name` and `user.email` to my GitHub noreply identity. It only does this when they aren't already set, so an existing work identity is kept. If `gh` is logged in, it also runs `gh auth setup-git`. Anyone else can pass their own identity with `GIT_NAME=… GIT_EMAIL=…`.
+
 ## Uninstall
 
 ```bash
