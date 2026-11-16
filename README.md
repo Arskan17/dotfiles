@@ -25,6 +25,13 @@ curl -fsSL https://raw.githubusercontent.com/Arskan17/dotfiles/main/install.sh |
 
 `--git` sets the global git `user.name` and `user.email` to my GitHub noreply identity. It only does this when they aren't already set, so an existing work identity is kept. If `gh` is logged in, it also runs `gh auth setup-git`. Anyone else can pass their own identity with `GIT_NAME=… GIT_EMAIL=…`.
 
+**GitLab:** if `glab` is installed and logged in, `--git` also does two things:
+
+- It connects `git push` to your `glab` login for HTTPS.
+- It writes your GitLab noreply email to `~/.config/git/gitlab-identity` and adds an `includeIf hasconfig:remote` rule, so any repo whose remote is on GitLab commits with the GitLab email, while every other repo uses the GitHub one. This needs git 2.36 or newer.
+
+The host defaults to `gitlab.com`; set `GITLAB_HOST=gitlab.example.com` for a self-hosted instance. To use a different email, set `GITLAB_EMAIL`.
+
 ## Uninstall
 
 ```bash

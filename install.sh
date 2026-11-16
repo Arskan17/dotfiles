@@ -75,6 +75,37 @@ main() {
     else
       info "gh not installed or not logged in; run 'gh auth login && gh auth setup-git' later for password-less pushes"
     fi
+    setup_glab
+  }
+
+  # GitLab: credential helper via glab + GitLab noreply email for repos whose remote is on GitLab.
+  # Host defaults to gitlab.com; set GITLAB_HOST for a self-hosted instance.
+  setup_glab() {
+    local host="${GITLAB_HOST:-gitlab.com}" glab json id user inc="$HOME/.config/git/gitlab-identity"
+    if ! command -v glab >/dev/null 2>&1 || ! glab auth status --hostname "$host" >/dev/null 2>&1; then
+      info "glab not installed or not logged in to $host; skipping GitLab (re-run with --git after 'glab auth login')"
+      return 0
+    fi
+    glab="$(command -v glab)"
+    if "$glab" auth git-credential --help >/dev/null 2>&1; then
+      git config --global --unset-all "credential.https://$host.helper" 2>/dev/null || true
+      git config --global --add "credential.https://$host.helper" ''
+      git config --global --add "credential.https://$host.helper" "!$glab auth git-credential"
+      info "git now uses the glab login for $host HTTPS"
+    else
+      warn "this glab version has no 'auth git-credential'; update glab for password-less pushes"
+    fi
+    json="$("$glab" api --hostname "$host" user 2>/dev/null || true)"
+    id="$(printf '%s' "$json" | grep -o '"id": *[0-9]*' | head -1 | grep -o '[0-9]*$' || true)"
+    user="$(printf '%s' "$json" | grep -o '"username": *"[^"]*"' | head -1 | sed 's/.*"\([^"]*\)"$/\1/' || true)"
+    if [ -z "$id" ] || [ -z "$user" ]; then
+      warn "could not read GitLab user from glab; GitLab repos will use the global email"; return 0
+    fi
+    mkdir -p "$(dirname "$inc")"
+    printf '[user]\n\temail = %s\n' "${GITLAB_EMAIL:-$id-$user@users.noreply.$host}" > "$inc"
+    git config --global "includeIf.hasconfig:remote.*.url:https://$host/**.path" "$inc"
+    git config --global "includeIf.hasconfig:remote.*.url:git@$host:*/**.path" "$inc"
+    info "GitLab repos on $host commit as $(sed -n 's/.*email = //p' "$inc")"
   }
 
   # ---------- uninstall ----------
