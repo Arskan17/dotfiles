@@ -1,0 +1,4 @@
+# Up/Down search history by the prefix already typed
+"\e[A": history-search-backward
+"\e[B": history-search-forward
+set completion-ignore-case on
